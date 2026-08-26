@@ -13,6 +13,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import AdminProjectRowActions from "@/components/admin/AdminProjectRowActions";
+import AdminNavButton from "@/components/admin/AdminNavButton";
 
 export default async function AdminDashboardPage() {
   const stats = await getDashboardStats();
@@ -31,13 +32,13 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
+          <AdminNavButton
             href="/admin/projects/new"
-            className="px-5 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-bold text-xs sm:text-sm transition-all shadow-lg shadow-lime-400/20 flex items-center gap-2"
+            iconType="plus"
+            pendingText="Opening Form..."
           >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Add New Project</span>
-          </Link>
+            Add New Project
+          </AdminNavButton>
         </div>
       </div>
 

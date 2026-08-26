@@ -96,7 +96,7 @@ function LoginForm() {
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" aria-busy={isLoading}>
           <div>
             <label className="block text-xs font-mono text-zinc-300 mb-1.5 uppercase tracking-wider">
               Email Address
@@ -104,10 +104,14 @@ function LoginForm() {
             <input
               type="email"
               required
+              disabled={isLoading}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errorMessage) setErrorMessage(null);
+              }}
               placeholder="admin@muhammaddaniyal.com"
-              className="w-full px-4 py-3 rounded-xl bg-zinc-900/90 border border-white/10 text-white text-sm focus:outline-none focus:border-lime-400 transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-zinc-900/90 border border-white/10 text-white text-sm focus:outline-none focus:border-lime-400 transition-colors disabled:opacity-60"
             />
           </div>
 
@@ -118,22 +122,26 @@ function LoginForm() {
             <input
               type="password"
               required
+              disabled={isLoading}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errorMessage) setErrorMessage(null);
+              }}
               placeholder="••••••••••••"
-              className="w-full px-4 py-3 rounded-xl bg-zinc-900/90 border border-white/10 text-white text-sm focus:outline-none focus:border-lime-400 transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-zinc-900/90 border border-white/10 text-white text-sm focus:outline-none focus:border-lime-400 transition-colors disabled:opacity-60"
             />
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3.5 px-6 rounded-xl bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-zinc-950 font-bold text-xs sm:text-sm transition-all duration-200 shadow-xl shadow-lime-400/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
+            className="w-full py-3.5 px-6 rounded-xl bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-zinc-950 font-bold text-xs sm:text-sm transition-all duration-200 shadow-xl shadow-lime-400/20 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Verifying Credentials...</span>
+                <span>Signing in...</span>
               </>
             ) : (
               <>

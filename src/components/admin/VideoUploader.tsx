@@ -9,6 +9,7 @@ interface VideoUploaderProps {
   currentPath?: string | null;
   onUploadComplete: (url: string, path: string) => void;
   onRemove?: () => void;
+  onUploadingStateChange?: (isUploading: boolean) => void;
 }
 
 export default function VideoUploader({
@@ -16,11 +17,13 @@ export default function VideoUploader({
   currentPath,
   onUploadComplete,
   onRemove,
+  onUploadingStateChange,
 }: VideoUploaderProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>(currentUrl || null);
   const [storagePath, setStoragePath] = useState<string | null>(currentPath || null);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<string>("Preparing video stream...");
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,7 +46,9 @@ export default function VideoUploader({
     }
 
     setIsUploading(true);
+    if (onUploadingStateChange) onUploadingStateChange(true);
     setProgress(10);
+    setUploadStage("Preparing video file...");
 
     try {
       const supabase = createClient();
@@ -60,18 +65,25 @@ export default function VideoUploader({
       if (!isSupabaseConfigured) {
         // Local mock blob preview
         const mockUrl = URL.createObjectURL(file);
-        for (let p = 20; p <= 100; p += 20) {
-          await new Promise((r) => setTimeout(r, 100));
+        setUploadStage("Streaming video direct to storage...");
+        for (let p = 20; p <= 90; p += 20) {
+          await new Promise((r) => setTimeout(r, 90));
           setProgress(p);
         }
+        setUploadStage("Finalizing video asset...");
+        await new Promise((r) => setTimeout(r, 60));
+        setProgress(100);
         setVideoUrl(mockUrl);
         setStoragePath(filePath);
         onUploadComplete(mockUrl, filePath);
         setIsUploading(false);
+        if (onUploadingStateChange) onUploadingStateChange(false);
         return;
       }
 
       // Direct Upload to Supabase Storage Bucket
+      setUploadStage("Uploading video direct to Supabase Storage...");
+      setProgress(40);
       const { data, error: uploadError } = await supabase.storage
         .from("portfolio-videos")
         .upload(filePath, file, {
@@ -83,7 +95,8 @@ export default function VideoUploader({
         throw new Error(uploadError.message);
       }
 
-      setProgress(90);
+      setUploadStage("Retrieving public video stream URL...");
+      setProgress(85);
 
       const { data: publicData } = supabase.storage
         .from("portfolio-videos")
@@ -100,6 +113,7 @@ export default function VideoUploader({
       setError(msg);
     } finally {
       setIsUploading(false);
+      if (onUploadingStateChange) onUploadingStateChange(false);
     }
   };
 
@@ -192,13 +206,13 @@ export default function VideoUploader({
           }`}
         >
           {isUploading ? (
-            <div className="space-y-4 max-w-xs w-full">
+            <div className="space-y-4 max-w-xs w-full" aria-live="polite" aria-busy="true">
               <div className="w-12 h-12 rounded-full bg-lime-400/10 border border-lime-400/20 flex items-center justify-center mx-auto text-lime-400 animate-spin">
                 <Loader2 className="w-6 h-6" />
               </div>
               <div>
                 <p className="text-sm font-bold text-white mb-1">
-                  Uploading Direct to Storage...
+                  {uploadStage}
                 </p>
                 <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
                   <div

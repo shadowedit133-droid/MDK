@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -11,22 +11,41 @@ import {
   ExternalLink,
   LogOut,
   Plus,
+  Loader2,
 } from "lucide-react";
 
 export default function AdminNavbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [navigatingHref, setNavigatingHref] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // If on login page, don't show admin links
   if (pathname === "/admin/login") {
     return null;
   }
 
+  const handleNavClick = (href: string, e: React.MouseEvent) => {
+    if (pathname === href) return;
+    e.preventDefault();
+    setNavigatingHref(href);
+    startTransition(() => {
+      router.push(href);
+    });
+  };
+
   const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/admin/login");
-    router.refresh();
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push("/admin/login");
+      router.refresh();
+    } catch {
+      setIsSigningOut(false);
+    }
   };
 
   const navLinks = [
@@ -40,7 +59,11 @@ export default function AdminNavbar() {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Left: Brand Identity */}
         <div className="flex items-center gap-4 sm:gap-6">
-          <Link href="/admin" className="flex items-center gap-2.5 group">
+          <Link
+            href="/admin"
+            onClick={(e) => handleNavClick("/admin", e)}
+            className="flex items-center gap-2.5 group"
+          >
             <div className="w-8 h-8 rounded-full bg-zinc-900 border border-white/15 flex items-center justify-center font-bold text-xs text-lime-400 font-mono shadow-inner group-hover:border-lime-400/50 transition-colors">
               M
             </div>
@@ -55,25 +78,32 @@ export default function AdminNavbar() {
           </Link>
 
           {/* Nav Items */}
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-1" aria-label="Admin Navigation">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive =
                 link.href === "/admin"
                   ? pathname === "/admin"
                   : pathname.startsWith(link.href);
+              const isItemNavigating = isPending && navigatingHref === link.href;
 
               return (
                 <Link
                   key={link.name}
                   href={link.href}
+                  onClick={(e) => handleNavClick(link.href, e)}
+                  aria-current={isActive ? "page" : undefined}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                     isActive
                       ? "bg-lime-400/10 text-lime-400 border border-lime-400/20 font-bold"
                       : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
-                  }`}
+                  } ${isItemNavigating ? "opacity-75" : ""}`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  {isItemNavigating ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Icon className="w-3.5 h-3.5" />
+                  )}
                   <span className="hidden xs:inline">{link.name}</span>
                 </Link>
               );
@@ -85,10 +115,20 @@ export default function AdminNavbar() {
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/admin/projects/new"
+            onClick={(e) => handleNavClick("/admin/projects/new", e)}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-lime-400 hover:bg-lime-300 text-zinc-950 font-bold text-xs transition-transform shadow-md shadow-lime-400/15 hover:scale-105"
           >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span className="hidden sm:inline">New Project</span>
+            {isPending && navigatingHref === "/admin/projects/new" ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span className="hidden sm:inline">Opening...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span className="hidden sm:inline">New Project</span>
+              </>
+            )}
           </Link>
 
           <Link
@@ -103,11 +143,22 @@ export default function AdminNavbar() {
 
           <button
             onClick={handleSignOut}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-zinc-900/60 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-white/10 hover:border-red-500/20 text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            disabled={isSigningOut}
+            className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-zinc-900/60 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-white/10 hover:border-red-500/20 text-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             title="Sign Out"
+            aria-busy={isSigningOut}
           >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Sign Out</span>
+            {isSigningOut ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span className="hidden md:inline">Signing out...</span>
+              </>
+            ) : (
+              <>
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Sign Out</span>
+              </>
+            )}
           </button>
         </div>
       </div>

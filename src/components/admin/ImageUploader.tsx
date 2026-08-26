@@ -10,6 +10,7 @@ interface ImageUploaderProps {
   currentPath?: string | null;
   onUploadComplete: (url: string, path: string) => void;
   onRemove?: () => void;
+  onUploadingStateChange?: (isUploading: boolean) => void;
 }
 
 export default function ImageUploader({
@@ -17,11 +18,13 @@ export default function ImageUploader({
   currentPath,
   onUploadComplete,
   onRemove,
+  onUploadingStateChange,
 }: ImageUploaderProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(currentUrl || null);
   const [storagePath, setStoragePath] = useState<string | null>(currentPath || null);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<string>("Preparing upload...");
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +47,9 @@ export default function ImageUploader({
     }
 
     setIsUploading(true);
-    setProgress(10);
+    if (onUploadingStateChange) onUploadingStateChange(true);
+    setProgress(15);
+    setUploadStage("Preparing upload...");
 
     try {
       const supabase = createClient();
@@ -61,18 +66,25 @@ export default function ImageUploader({
       if (!isSupabaseConfigured) {
         // Local mock blob preview
         const mockUrl = URL.createObjectURL(file);
-        for (let p = 20; p <= 100; p += 20) {
+        setUploadStage("Uploading poster thumbnail...");
+        for (let p = 25; p <= 90; p += 25) {
           await new Promise((r) => setTimeout(r, 80));
           setProgress(p);
         }
+        setUploadStage("Processing thumbnail...");
+        await new Promise((r) => setTimeout(r, 60));
+        setProgress(100);
         setImageUrl(mockUrl);
         setStoragePath(filePath);
         onUploadComplete(mockUrl, filePath);
         setIsUploading(false);
+        if (onUploadingStateChange) onUploadingStateChange(false);
         return;
       }
 
       // Direct Upload to Supabase Storage Bucket
+      setUploadStage("Uploading to Supabase Storage...");
+      setProgress(40);
       const { data, error: uploadError } = await supabase.storage
         .from("portfolio-thumbnails")
         .upload(filePath, file, {
@@ -84,7 +96,8 @@ export default function ImageUploader({
         throw new Error(uploadError.message);
       }
 
-      setProgress(90);
+      setUploadStage("Processing public asset URL...");
+      setProgress(85);
 
       const { data: publicData } = supabase.storage
         .from("portfolio-thumbnails")
@@ -101,6 +114,7 @@ export default function ImageUploader({
       setError(msg);
     } finally {
       setIsUploading(false);
+      if (onUploadingStateChange) onUploadingStateChange(false);
     }
   };
 
@@ -193,13 +207,13 @@ export default function ImageUploader({
           }`}
         >
           {isUploading ? (
-            <div className="space-y-4 max-w-xs w-full">
+            <div className="space-y-4 max-w-xs w-full" aria-live="polite" aria-busy="true">
               <div className="w-10 h-10 rounded-full bg-lime-400/10 border border-lime-400/20 flex items-center justify-center mx-auto text-lime-400 animate-spin">
                 <Loader2 className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs font-bold text-white mb-1">
-                  Uploading Poster Thumbnail...
+                  {uploadStage}
                 </p>
                 <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div

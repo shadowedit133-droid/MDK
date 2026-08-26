@@ -117,10 +117,15 @@ export default function ProjectForm({
   );
   const [newDeliverableInput, setNewDeliverableInput] = useState("");
 
+  // Uploading state tracking
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const isUploadingMedia = isUploadingVideo || isUploadingImage;
+
   // Action status
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   // Auto-generate slug from title if new
   useEffect(() => {
@@ -159,9 +164,28 @@ export default function ProjectForm({
     setDeliverables((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  const getSubmitLabel = (isButtonInHeader = false) => {
+    if (isSubmitting) {
+      if (isEditing) return "Updating Project...";
+      if (status === "published") return "Publishing Project...";
+      return "Saving Draft...";
+    }
+    if (isEditing) return isButtonInHeader ? "Update Project" : "Save & Update Project";
+    if (status === "published") return isButtonInHeader ? "Publish Project" : "Publish to Portfolio";
+    return isButtonInHeader ? "Save Draft" : "Save Project as Draft";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    if (isUploadingMedia) {
+      setError("Media upload is currently in progress. Please wait for the upload to complete before saving.");
+      return;
+    }
+
     setError(null);
+    setFeedbackMessage(null);
     setIsSubmitting(true);
 
     if (!title.trim()) {
@@ -217,7 +241,15 @@ export default function ProjectForm({
         return;
       }
 
-      setSuccess(true);
+      const msg = isEditing
+        ? "Project updated successfully!"
+        : status === "published"
+        ? "Project published successfully to portfolio!"
+        : "Project saved as draft successfully!";
+
+      setFeedbackMessage(msg);
+      
+      // Navigate to projects catalog
       router.push("/admin/projects");
       router.refresh();
     } catch (err: unknown) {
@@ -227,7 +259,7 @@ export default function ProjectForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto" aria-busy={isSubmitting}>
       {/* Top Back & Header */}
       <div className="flex items-center justify-between pb-6 border-b border-white/[0.08]">
         <Link
@@ -241,26 +273,43 @@ export default function ProjectForm({
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-zinc-950 font-bold text-xs sm:text-sm transition-all shadow-lg shadow-lime-400/20 flex items-center gap-2 cursor-pointer"
+            disabled={isSubmitting || isUploadingMedia}
+            className="px-6 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-zinc-950 font-bold text-xs sm:text-sm transition-all shadow-lg shadow-lime-400/20 flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Saving Project...</span>
+                <span>{getSubmitLabel(true)}</span>
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                <span>{isEditing ? "Update Project" : "Create Project"}</span>
+                <span>{getSubmitLabel(true)}</span>
               </>
             )}
           </button>
         </div>
       </div>
 
+      {/* Success Feedback Alert */}
+      {feedbackMessage && (
+        <div className="p-4 rounded-2xl bg-lime-400/10 border border-lime-400/20 text-lime-400 text-xs flex items-center gap-3 animate-in fade-in duration-200">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <span className="font-semibold">{feedbackMessage}</span>
+        </div>
+      )}
+
+      {/* Uploading Media Banner Warning */}
+      {isUploadingMedia && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs flex items-center gap-2.5">
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          <span>Media upload in progress. Please wait for upload to finish before saving.</span>
+        </div>
+      )}
+
+      {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-3">
+        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-3 animate-in fade-in duration-200">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -365,6 +414,7 @@ export default function ProjectForm({
             <VideoUploader
               currentUrl={videoUrl}
               currentPath={videoStoragePath}
+              onUploadingStateChange={(uploading) => setIsUploadingVideo(uploading)}
               onUploadComplete={(url, path) => {
                 setVideoUrl(url);
                 setVideoStoragePath(path);
@@ -383,6 +433,7 @@ export default function ProjectForm({
             <ImageUploader
               currentUrl={thumbnailUrl}
               currentPath={thumbnailStoragePath}
+              onUploadingStateChange={(uploading) => setIsUploadingImage(uploading)}
               onUploadComplete={(url, path) => {
                 setThumbnailUrl(url);
                 setThumbnailStoragePath(path);
@@ -682,18 +733,18 @@ export default function ProjectForm({
 
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="px-8 py-3.5 rounded-xl bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-zinc-950 font-bold text-xs sm:text-sm transition-all shadow-xl shadow-lime-400/20 flex items-center gap-2 cursor-pointer"
+          disabled={isSubmitting || isUploadingMedia}
+          className="px-8 py-3.5 rounded-xl bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-zinc-950 font-bold text-xs sm:text-sm transition-all shadow-xl shadow-lime-400/20 flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Saving Changes...</span>
+              <span>{getSubmitLabel(false)}</span>
             </>
           ) : (
             <>
               <Save className="w-4 h-4" />
-              <span>{isEditing ? "Save & Update Project" : "Publish / Save Project"}</span>
+              <span>{getSubmitLabel(false)}</span>
             </>
           )}
         </button>

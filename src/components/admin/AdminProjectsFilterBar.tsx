@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { DbCategory } from "@/lib/db/types";
-import { Search, Filter, RotateCcw } from "lucide-react";
+import { Search, Filter, RotateCcw, Loader2 } from "lucide-react";
 
 interface AdminProjectsFilterBarProps {
   categories: DbCategory[];
@@ -15,6 +15,7 @@ export default function AdminProjectsFilterBar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [status, setStatus] = useState(searchParams.get("status") || "all");
@@ -33,7 +34,9 @@ export default function AdminProjectsFilterBar({
       }
     });
 
-    router.push(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -47,11 +50,18 @@ export default function AdminProjectsFilterBar({
     setCategory("all");
     setFeatured("all");
     setSort("newest");
-    router.push(pathname);
+    startTransition(() => {
+      router.push(pathname);
+    });
   };
 
   return (
-    <div className="p-4 sm:p-5 rounded-2xl bg-[#0e0e14] border border-white/[0.08] space-y-3 sm:space-y-4">
+    <div
+      className={`p-4 sm:p-5 rounded-2xl bg-[#0e0e14] border border-white/[0.08] space-y-3 sm:space-y-4 transition-opacity ${
+        isPending ? "opacity-75" : ""
+      }`}
+      aria-busy={isPending}
+    >
       <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
         {/* Search Input */}
         <div className="relative flex-grow">
@@ -67,9 +77,17 @@ export default function AdminProjectsFilterBar({
 
         <button
           type="submit"
-          className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+          disabled={isPending}
+          className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
         >
-          <span>Search</span>
+          {isPending ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-lime-400" />
+              <span>Filtering...</span>
+            </>
+          ) : (
+            <span>Search</span>
+          )}
         </button>
       </form>
 

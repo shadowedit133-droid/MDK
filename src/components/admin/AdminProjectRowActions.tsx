@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deleteProjectAction } from "@/lib/actions/projects";
@@ -20,11 +20,21 @@ export default function AdminProjectRowActions({
   status,
 }: AdminProjectRowActionsProps) {
   const router = useRouter();
+  const [isNavigatingEdit, startTransition] = useTransition();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isNavigatingEdit) return;
+    startTransition(() => {
+      router.push(`/admin/projects/${id}/edit`);
+    });
+  };
+
   const handleDelete = async () => {
+    if (isDeleting) return;
     setIsDeleting(true);
     setError(null);
     try {
@@ -56,18 +66,27 @@ export default function AdminProjectRowActions({
           </Link>
         )}
 
-        <Link
-          href={`/admin/projects/${id}/edit`}
-          className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-lime-300 border border-white/5 transition-colors"
+        <button
+          type="button"
+          onClick={handleEditClick}
+          disabled={isNavigatingEdit}
+          className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-lime-300 border border-white/5 transition-colors cursor-pointer disabled:opacity-50"
           title="Edit Project"
+          aria-label={`Edit ${title}`}
         >
-          <Edit className="w-3.5 h-3.5" />
-        </Link>
+          {isNavigatingEdit ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-lime-400" />
+          ) : (
+            <Edit className="w-3.5 h-3.5" />
+          )}
+        </button>
 
         <button
+          type="button"
           onClick={() => setShowDeleteModal(true)}
           className="p-1.5 rounded-lg bg-zinc-900 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-white/5 transition-colors cursor-pointer"
           title="Delete Project"
+          aria-label={`Delete ${title}`}
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -76,14 +95,19 @@ export default function AdminProjectRowActions({
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-[#121218] border border-white/10 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-5 text-left">
+          <div
+            className="bg-[#121218] border border-white/10 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-5 text-left"
+            aria-busy={isDeleting}
+          >
             <div className="flex items-center justify-between">
               <div className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <button
-                onClick={() => setShowDeleteModal(false)}
-                className="p-2 rounded-full text-zinc-400 hover:text-white transition-colors"
+                type="button"
+                onClick={() => !isDeleting && setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="p-2 rounded-full text-zinc-400 hover:text-white transition-colors disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -109,7 +133,7 @@ export default function AdminProjectRowActions({
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isDeleting}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-bold transition-colors border border-white/10"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-bold transition-colors border border-white/10 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -117,7 +141,7 @@ export default function AdminProjectRowActions({
                 type="button"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-500/20 cursor-pointer disabled:cursor-not-allowed"
               >
                 {isDeleting ? (
                   <>
@@ -135,3 +159,4 @@ export default function AdminProjectRowActions({
     </>
   );
 }
+
