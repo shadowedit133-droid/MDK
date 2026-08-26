@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { profileData } from "@/data/profile";
@@ -10,7 +10,6 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -147,18 +146,15 @@ export default function Navbar() {
       {/* Mobile Drawer Menu Modal */}
       {mobileMenuOpen && (
         <div
-          ref={menuRef}
-          className="lg:hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex flex-col justify-between p-5 pt-20 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] h-[100dvh] max-h-[100dvh] min-h-[100dvh] overflow-y-auto overscroll-contain animate-in fade-in duration-200"
-          onClick={(e) => {
-            if (e.target === menuRef.current) setMobileMenuOpen(false);
-          }}
+          className="lg:hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl overflow-y-auto overscroll-contain animate-in fade-in duration-200"
           aria-modal="true"
           role="dialog"
           aria-label="Mobile navigation"
         >
           {/* Top Close Bar */}
-          <div className="absolute top-4 right-4 z-20">
+          <div className="absolute top-4 right-4 z-30">
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(false)}
               className="p-3 rounded-full bg-zinc-900/90 border border-white/15 text-zinc-300 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors cursor-pointer"
               aria-label="Close menu"
@@ -167,73 +163,74 @@ export default function Navbar() {
             </button>
           </div>
 
-          <div className="flex flex-col space-y-5 max-w-sm mx-auto w-full pt-2 relative z-10 pointer-events-auto">
-            {/* Status Pill */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-lime-400 inline-block animate-pulse" />
-                <span className="text-xs text-zinc-300 font-medium">
-                  Available for selected projects
+          <div className="min-h-[100dvh] flex flex-col justify-between p-5 pt-20 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] max-w-sm mx-auto w-full">
+            {/* Top Nav Section */}
+            <div className="flex flex-col space-y-5 w-full pt-2">
+              {/* Status Pill */}
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-lime-400 inline-block animate-pulse" />
+                  <span className="text-xs text-zinc-300 font-medium">
+                    Available for selected projects
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-lime-400/10 text-lime-400 border border-lime-400/20 font-mono">
+                  Top Rated
                 </span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-lime-400/10 text-lime-400 border border-lime-400/20 font-mono">
-                Top Rated
-              </span>
+
+              {/* Nav Route Links with Large Touch Targets */}
+              <nav className="flex flex-col space-y-2" aria-label="Mobile site links">
+                {navLinks.map((link) => {
+                  const isActive =
+                    link.href === "/"
+                      ? pathname === "/"
+                      : pathname.startsWith(link.href);
+
+                  return (
+                    <Link
+                      key={link.name}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`px-4 py-3 rounded-2xl text-base font-semibold transition-all flex items-center justify-between min-h-[48px] ${
+                        isActive
+                          ? "bg-lime-400 text-zinc-950 font-bold shadow-lg shadow-lime-400/20"
+                          : "text-zinc-200 hover:text-white hover:bg-white/5 active:bg-white/10"
+                      }`}
+                    >
+                      <span>{link.name}</span>
+                      {isActive ? (
+                        <span className="w-2 h-2 rounded-full bg-zinc-950" />
+                      ) : (
+                        <span className="text-xs font-mono text-zinc-500">→</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
             </div>
 
-            {/* Nav Route Links with Large Touch Targets */}
-            <nav className="flex flex-col space-y-2" aria-label="Mobile site links">
-              {navLinks.map((link) => {
-                const isActive =
-                  link.href === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(link.href);
+            {/* Bottom Drawer Actions — Pure Native Anchor Navigation */}
+            <div className="w-full pt-6 pb-2 space-y-3">
+              <a
+                href={profileData.upworkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-lime-400 hover:bg-lime-300 active:bg-lime-500 text-zinc-950 text-sm font-bold py-4 rounded-2xl shadow-xl shadow-lime-400/25 transition-all min-h-[52px] cursor-pointer"
+              >
+                <span>Hire Me on Upwork</span>
+                <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+              </a>
 
-                return (
-                  <Link
-                    key={link.name}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`px-4 py-3 rounded-2xl text-base font-semibold transition-all flex items-center justify-between min-h-[48px] touch-manipulation ${
-                      isActive
-                        ? "bg-lime-400 text-zinc-950 font-bold shadow-lg shadow-lime-400/20"
-                        : "text-zinc-200 hover:text-white hover:bg-white/5 active:bg-white/10"
-                    }`}
-                  >
-                    <span>{link.name}</span>
-                    {isActive ? (
-                      <span className="w-2 h-2 rounded-full bg-zinc-950" />
-                    ) : (
-                      <span className="text-xs font-mono text-zinc-500">→</span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Bottom Drawer Actions */}
-          <div className="max-w-sm mx-auto w-full pt-4 pb-2 space-y-3 relative z-10 pointer-events-auto">
-            <a
-              href={profileData.upworkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => {
-                setTimeout(() => setMobileMenuOpen(false), 200);
-              }}
-              className="w-full flex items-center justify-center gap-2 bg-lime-400 hover:bg-lime-300 active:bg-lime-500 text-zinc-950 text-sm font-bold py-4 rounded-2xl shadow-xl shadow-lime-400/25 transition-all min-h-[52px] cursor-pointer touch-manipulation relative z-20 pointer-events-auto select-none"
-            >
-              <span>Hire Me on Upwork</span>
-              <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-            </a>
-
-            <p className="text-center text-[11px] text-zinc-400 leading-normal">
-              {profileData.complianceNotice}
-            </p>
+              <p className="text-center text-[11px] text-zinc-400 leading-normal">
+                {profileData.complianceNotice}
+              </p>
+            </div>
           </div>
         </div>
       )}
     </>
   );
 }
+
 
