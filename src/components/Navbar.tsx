@@ -148,23 +148,26 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div
           ref={menuRef}
-          className="lg:hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-2xl flex flex-col justify-between p-5 pt-20 animate-in fade-in duration-200"
+          className="lg:hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex flex-col justify-between p-5 pt-20 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] h-[100dvh] max-h-[100dvh] min-h-[100dvh] overflow-y-auto overscroll-contain animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === menuRef.current) setMobileMenuOpen(false);
           }}
+          aria-modal="true"
+          role="dialog"
+          aria-label="Mobile navigation"
         >
           {/* Top Close Bar */}
-          <div className="absolute top-4 right-4 z-10">
+          <div className="absolute top-4 right-4 z-20">
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="p-3 rounded-full bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="p-3 rounded-full bg-zinc-900/90 border border-white/15 text-zinc-300 hover:text-white min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors cursor-pointer"
               aria-label="Close menu"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
 
-          <div className="flex flex-col space-y-6 max-w-sm mx-auto w-full pt-4">
+          <div className="flex flex-col space-y-5 max-w-sm mx-auto w-full pt-2 relative z-10 pointer-events-auto">
             {/* Status Pill */}
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
@@ -179,7 +182,7 @@ export default function Navbar() {
             </div>
 
             {/* Nav Route Links with Large Touch Targets */}
-            <nav className="flex flex-col space-y-2">
+            <nav className="flex flex-col space-y-2" aria-label="Mobile site links">
               {navLinks.map((link) => {
                 const isActive =
                   link.href === "/"
@@ -191,10 +194,10 @@ export default function Navbar() {
                     key={link.name}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`px-4 py-3 rounded-2xl text-base font-semibold transition-all flex items-center justify-between min-h-[48px] ${
+                    className={`px-4 py-3 rounded-2xl text-base font-semibold transition-all flex items-center justify-between min-h-[48px] touch-manipulation ${
                       isActive
                         ? "bg-lime-400 text-zinc-950 font-bold shadow-lg shadow-lime-400/20"
-                        : "text-zinc-200 hover:text-white hover:bg-white/5"
+                        : "text-zinc-200 hover:text-white hover:bg-white/5 active:bg-white/10"
                     }`}
                   >
                     <span>{link.name}</span>
@@ -210,13 +213,15 @@ export default function Navbar() {
           </div>
 
           {/* Bottom Drawer Actions */}
-          <div className="max-w-sm mx-auto w-full pb-4 space-y-3">
+          <div className="max-w-sm mx-auto w-full pt-4 pb-2 space-y-3 relative z-10 pointer-events-auto">
             <a
               href={profileData.upworkUrl}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full flex items-center justify-center gap-2 bg-lime-400 text-zinc-950 text-sm font-bold py-4 rounded-2xl shadow-xl shadow-lime-400/25 transition-all min-h-[50px]"
+              onClick={() => {
+                setTimeout(() => setMobileMenuOpen(false), 200);
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-lime-400 hover:bg-lime-300 active:bg-lime-500 text-zinc-950 text-sm font-bold py-4 rounded-2xl shadow-xl shadow-lime-400/25 transition-all min-h-[52px] cursor-pointer touch-manipulation relative z-20 pointer-events-auto select-none"
             >
               <span>Hire Me on Upwork</span>
               <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
@@ -231,3 +236,4 @@ export default function Navbar() {
     </>
   );
 }
+
