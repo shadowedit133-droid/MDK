@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Upload, Film, CheckCircle2, AlertCircle, X, Loader2, Play } from "lucide-react";
+import { Upload, Film, CheckCircle2, AlertCircle, X, Loader2, Play, RefreshCw } from "lucide-react";
 
 interface VideoUploaderProps {
   currentUrl?: string | null;
@@ -27,6 +27,7 @@ export default function VideoUploader({
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleFile = async (file: File) => {
     setError(null);
@@ -50,6 +51,9 @@ export default function VideoUploader({
     setProgress(10);
     setUploadStage("Preparing video file...");
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       const supabase = createClient();
       const isSupabaseConfigured =
@@ -67,6 +71,7 @@ export default function VideoUploader({
         const mockUrl = URL.createObjectURL(file);
         setUploadStage("Streaming video direct to storage...");
         for (let p = 20; p <= 90; p += 20) {
+          if (abortController.signal.aborted) throw new Error("Upload cancelled");
           await new Promise((r) => setTimeout(r, 90));
           setProgress(p);
         }
@@ -81,39 +86,80 @@ export default function VideoUploader({
         return;
       }
 
-      // Direct Upload to Supabase Storage Bucket
+      // Direct Upload to Supabase Storage Bucket with Retry Resilience
       setUploadStage("Uploading video direct to Supabase Storage...");
-      setProgress(40);
-      const { data, error: uploadError } = await supabase.storage
-        .from("portfolio-videos")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: true,
-        });
+      setProgress(35);
 
-      if (uploadError) {
-        throw new Error(uploadError.message);
+      let attempts = 0;
+      let uploadSuccess = false;
+      let uploadData: any = null;
+      let lastError: any = null;
+
+      while (attempts < 3 && !uploadSuccess) {
+        attempts++;
+        if (abortController.signal.aborted) throw new Error("Upload cancelled");
+
+        try {
+          const { data, error: uploadError } = await supabase.storage
+            .from("portfolio-videos")
+            .upload(filePath, file, {
+              cacheControl: "3600",
+              upsert: true,
+            });
+
+          if (uploadError) {
+            lastError = uploadError;
+            if (attempts < 3) {
+              setUploadStage(`Network retry (${attempts}/3)...`);
+              await new Promise((r) => setTimeout(r, 1000 * attempts));
+            }
+          } else {
+            uploadSuccess = true;
+            uploadData = data;
+          }
+        } catch (netErr) {
+          lastError = netErr;
+          if (attempts < 3) {
+            setUploadStage(`Network retry (${attempts}/3)...`);
+            await new Promise((r) => setTimeout(r, 1000 * attempts));
+          }
+        }
+      }
+
+      if (!uploadSuccess || !uploadData) {
+        throw new Error(lastError?.message || "Upload failed after 3 retry attempts.");
       }
 
       setUploadStage("Retrieving public video stream URL...");
-      setProgress(85);
+      setProgress(90);
 
       const { data: publicData } = supabase.storage
         .from("portfolio-videos")
-        .getPublicUrl(data.path);
+        .getPublicUrl(uploadData.path);
 
       const finalUrl = publicData.publicUrl;
       setProgress(100);
       setVideoUrl(finalUrl);
-      setStoragePath(data.path);
-      onUploadComplete(finalUrl, data.path);
+      setStoragePath(uploadData.path);
+      onUploadComplete(finalUrl, uploadData.path);
     } catch (err: unknown) {
-      console.error("Video upload error:", err);
-      const msg = err instanceof Error ? err.message : "Upload failed. Check storage credentials.";
-      setError(msg);
+      if (abortController.signal.aborted) {
+        setError("Upload cancelled.");
+      } else {
+        console.error("Video upload error:", err);
+        const msg = err instanceof Error ? err.message : "Upload failed. Check storage credentials.";
+        setError(msg);
+      }
     } finally {
       setIsUploading(false);
+      abortControllerRef.current = null;
       if (onUploadingStateChange) onUploadingStateChange(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
   };
 
@@ -220,7 +266,19 @@ export default function VideoUploader({
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <p className="text-xs font-mono text-zinc-400 mt-2">{progress}%</p>
+                <div className="flex items-center justify-between text-xs font-mono text-zinc-400 mt-2">
+                  <span>{progress}%</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancel();
+                    }}
+                    className="text-red-400 hover:text-red-300 underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -236,7 +294,7 @@ export default function VideoUploader({
                   </span>
                 </p>
                 <p className="text-xs text-zinc-400 font-mono mt-1">
-                  MP4 or WebM up to 500MB (Direct-to-storage stream)
+                  MP4 or WebM up to 500MB (Direct-to-storage stream with retry)
                 </p>
               </div>
             </div>

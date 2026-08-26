@@ -1,6 +1,6 @@
 import React from "react";
 import { Metadata } from "next";
-import { getAllPublishedProjects } from "@/lib/db/projects";
+import { getPaginatedPublishedProjects } from "@/lib/db/projects";
 import { getActiveCategories } from "@/lib/db/categories";
 import WorkClient from "./WorkClient";
 
@@ -20,8 +20,9 @@ export const metadata: Metadata = {
 };
 
 export default async function WorkPage() {
-  const [projects, categories] = await Promise.all([
-    getAllPublishedProjects(),
+  // Query ONLY the first 12 items on initial server render (Exact 12 DB rows)
+  const [initialResult, categories] = await Promise.all([
+    getPaginatedPublishedProjects({ page: 1, pageSize: 12 }),
     getActiveCategories(),
   ]);
 
@@ -41,8 +42,12 @@ export default async function WorkPage() {
           </p>
         </div>
 
-        {/* Interactive Filterable Work Client */}
-        <WorkClient initialProjects={projects} categories={categories} />
+        {/* Interactive Database-Backed Filterable Work Client */}
+        <WorkClient
+          initialProjects={initialResult.data}
+          initialTotal={initialResult.total}
+          categories={categories}
+        />
       </div>
     </main>
   );

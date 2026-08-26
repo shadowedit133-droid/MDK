@@ -73,6 +73,77 @@ export async function getFeaturedPublishedProjects(
   }
 }
 
+export async function getPaginatedPublishedProjects(options?: {
+  categorySlug?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<PaginatedResult<ProjectCardItem>> {
+  const page = Math.max(1, Number(options?.page) || 1);
+  const pageSize = Math.max(1, Math.min(50, Number(options?.pageSize) || 12));
+  const categorySlug = options?.categorySlug;
+
+  if (!isSupabaseConfigured()) {
+    let list = memoryProjects.filter((p) => p.status === "published");
+    if (categorySlug && categorySlug !== "all") {
+      list = list.filter((p) => p.category?.slug === categorySlug);
+    }
+    list.sort((a, b) => a.sort_order - b.sort_order);
+    const total = list.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const data = list.slice((page - 1) * pageSize, page * pageSize) as unknown as ProjectCardItem[];
+    return { data, total, page, pageSize, totalPages };
+  }
+
+  try {
+    const supabase = await createClient();
+    let query = supabase
+      .from("portfolio_projects")
+      .select(PROJECT_CARD_FIELDS, { count: "exact" })
+      .eq("status", "published")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    // Category filter in SQL
+    if (categorySlug && categorySlug !== "all") {
+      const { data: categoryData } = await supabase
+        .from("portfolio_categories")
+        .select("id")
+        .eq("slug", categorySlug)
+        .maybeSingle();
+
+      if (categoryData?.id) {
+        query = query.eq("category_id", categoryData.id);
+      } else {
+        return { data: [], total: 0, page, pageSize, totalPages: 0 };
+      }
+    }
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+    if (error || !data) {
+      console.error("Error in getPaginatedPublishedProjects:", error?.message || error);
+      return { data: [], total: 0, page, pageSize, totalPages: 0 };
+    }
+
+    const total = count || 0;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+
+    return {
+      data: data as unknown as ProjectCardItem[],
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
+  } catch (err) {
+    console.error("Error in getPaginatedPublishedProjects:", err);
+    return { data: [], total: 0, page, pageSize, totalPages: 0 };
+  }
+}
+
 export async function getAllPublishedProjects(
   categorySlug?: string
 ): Promise<ProjectCardItem[]> {

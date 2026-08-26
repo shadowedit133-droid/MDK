@@ -15,17 +15,10 @@ export default function FeaturedCard({
 
   const handleMouseEnter = () => {
     setIsHovered(true);
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    }
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
   };
 
   const categoryName = project.category?.name || "Video Editing";
@@ -38,19 +31,18 @@ export default function FeaturedCard({
       onMouseLeave={handleMouseLeave}
       className="group relative rounded-2xl sm:rounded-3xl overflow-hidden bg-[#0e0e14] border border-white/[0.08] hover:border-lime-400/40 transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.8)] flex flex-col justify-between"
     >
+      {/* Video / Thumbnail Viewport: Only attach video when user actively hovers */}
       <div className="relative aspect-video w-full overflow-hidden bg-black">
-        {project.video_url ? (
+        {isHovered && project.video_url ? (
           <video
             ref={videoRef}
             src={project.video_url}
             poster={displayImage || undefined}
+            autoPlay
             muted
             loop
             playsInline
-            preload="none"
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
-              isHovered ? "opacity-100" : "opacity-85"
-            }`}
+            className="w-full h-full object-cover transition-transform duration-500 scale-105 opacity-100"
           />
         ) : displayImage ? (
           /* eslint-disable-next-line @next/next/no-img-element */

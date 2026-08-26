@@ -1,43 +1,77 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import { ProjectCardItem, DbCategory } from "@/lib/db/types";
 import { profileData } from "@/data/profile";
-import { Film, Play, ArrowUpRight, Clock, Sparkles, ChevronDown } from "lucide-react";
+import { fetchMoreProjectsAction } from "@/lib/actions/projects";
+import { Film, Play, ArrowUpRight, Clock, Sparkles, ChevronDown, Loader2 } from "lucide-react";
 
 interface WorkClientProps {
   initialProjects: ProjectCardItem[];
+  initialTotal: number;
   categories: DbCategory[];
 }
 
-const INITIAL_VISIBLE_COUNT = 12;
-const LOAD_MORE_STEP = 12;
+const PAGE_SIZE = 12;
 
 export default function WorkClient({
   initialProjects,
+  initialTotal,
   categories,
 }: WorkClientProps) {
   const [activeCategorySlug, setActiveCategorySlug] = useState<string>("all");
-  const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
+  const [projects, setProjects] = useState<ProjectCardItem[]>(initialProjects);
+  const [totalCount, setTotalCount] = useState<number>(initialTotal);
+  const [page, setPage] = useState<number>(1);
+  const [isPending, startTransition] = useTransition();
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
-  const filteredProjects =
-    activeCategorySlug === "all"
-      ? initialProjects
-      : initialProjects.filter(
-          (p) => p.category && p.category.slug === activeCategorySlug
-        );
+  const hasMore = projects.length < totalCount;
 
-  const displayedProjects = filteredProjects.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredProjects.length;
-
+  // Switch category: fetch page 1 for the new category from the database
   const handleCategoryChange = (slug: string) => {
+    if (slug === activeCategorySlug) return;
     setActiveCategorySlug(slug);
-    setVisibleCount(INITIAL_VISIBLE_COUNT);
+    setPage(1);
+
+    startTransition(async () => {
+      const result = await fetchMoreProjectsAction({
+        categorySlug: slug,
+        page: 1,
+        pageSize: PAGE_SIZE,
+      });
+      setProjects(result.data);
+      setTotalCount(result.total);
+    });
   };
 
-  const handleLoadMore = () => {
-    setVisibleCount((prev) => prev + LOAD_MORE_STEP);
+  // Load next database page on demand
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    const nextPage = page + 1;
+
+    try {
+      const result = await fetchMoreProjectsAction({
+        categorySlug: activeCategorySlug,
+        page: nextPage,
+        pageSize: PAGE_SIZE,
+      });
+
+      // Append next batch from DB without duplicates
+      setProjects((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const newItems = result.data.filter((item) => !existingIds.has(item.id));
+        return [...prev, ...newItems];
+      });
+      setTotalCount(result.total);
+      setPage(nextPage);
+    } catch (err) {
+      console.error("Error loading more projects:", err);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   return (
@@ -48,25 +82,27 @@ export default function WorkClient({
           <div className="flex items-center gap-2 overflow-x-auto pb-3 pt-1 scrollbar-none no-scrollbar flex-nowrap -mx-4 px-4 sm:mx-0 sm:px-0">
             <button
               onClick={() => handleCategoryChange("all")}
+              disabled={isPending}
               className={`px-4 py-2.5 rounded-full text-xs font-mono font-medium whitespace-nowrap transition-all duration-200 cursor-pointer min-h-[42px] flex items-center shrink-0 ${
                 activeCategorySlug === "all"
                   ? "bg-lime-400 text-zinc-950 font-bold shadow-lg shadow-lime-400/20"
                   : "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-white/[0.06] hover:border-white/15"
               }`}
             >
-              All Projects ({initialProjects.length})
+              <span>All Projects</span>
+              {activeCategorySlug === "all" && (
+                <span className="ml-1.5 opacity-80 text-[10px]">({totalCount})</span>
+              )}
             </button>
 
             {categories.map((category) => {
               const isActive = activeCategorySlug === category.slug;
-              const count = initialProjects.filter(
-                (p) => p.category?.slug === category.slug
-              ).length;
 
               return (
                 <button
                   key={category.id}
                   onClick={() => handleCategoryChange(category.slug)}
+                  disabled={isPending}
                   className={`px-4 py-2.5 rounded-full text-xs font-mono font-medium whitespace-nowrap transition-all duration-200 cursor-pointer min-h-[42px] flex items-center shrink-0 ${
                     isActive
                       ? "bg-lime-400 text-zinc-950 font-bold shadow-lg shadow-lime-400/20"
@@ -74,8 +110,8 @@ export default function WorkClient({
                   }`}
                 >
                   <span>{category.name}</span>
-                  {count > 0 && (
-                    <span className="ml-1.5 opacity-60 text-[10px]">({count})</span>
+                  {isActive && (
+                    <span className="ml-1.5 opacity-80 text-[10px]">({totalCount})</span>
                   )}
                 </button>
               );
@@ -84,26 +120,45 @@ export default function WorkClient({
         </div>
       )}
 
-      {/* Projects Grid: 1 col on mobile, 2 on tablet, 3 on desktop */}
-      {displayedProjects.length > 0 ? (
+      {/* Projects Grid */}
+      {isPending ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 opacity-60">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl sm:rounded-3xl bg-[#0e0e14] border border-white/[0.06] aspect-video animate-pulse"
+            />
+          ))}
+        </div>
+      ) : projects.length > 0 ? (
         <div className="space-y-10">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {displayedProjects.map((project) => (
+            {projects.map((project) => (
               <WorkProjectCard key={project.id} project={project} />
             ))}
           </div>
 
-          {/* Scalable Load More Trigger */}
+          {/* Scalable Database Load More Trigger */}
           {hasMore && (
             <div className="flex flex-col items-center justify-center pt-4 sm:pt-6">
               <button
                 onClick={handleLoadMore}
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-lime-400/40 text-white hover:text-lime-300 text-xs font-mono font-bold transition-all shadow-lg hover:shadow-lime-400/10 cursor-pointer"
+                disabled={isLoadingMore}
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-lime-400/40 text-white hover:text-lime-300 text-xs font-mono font-bold transition-all shadow-lg hover:shadow-lime-400/10 cursor-pointer disabled:opacity-60"
               >
-                <span>
-                  Load More Projects ({filteredProjects.length - visibleCount} remaining)
-                </span>
-                <ChevronDown className="w-4 h-4 text-lime-400" />
+                {isLoadingMore ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-lime-400" />
+                    <span>Loading next page from database...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      Load More Projects ({totalCount - projects.length} remaining)
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-lime-400" />
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -169,17 +224,10 @@ function WorkProjectCard({ project }: { project: ProjectCardItem }) {
 
   const handleMouseEnter = () => {
     setIsHovered(true);
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    }
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
   };
 
   const categoryName = project.category?.name || "Video Editing";
@@ -192,20 +240,18 @@ function WorkProjectCard({ project }: { project: ProjectCardItem }) {
       onMouseLeave={handleMouseLeave}
       className="group relative rounded-2xl sm:rounded-3xl overflow-hidden bg-[#0e0e14] border border-white/[0.08] hover:border-lime-400/40 transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.8)] flex flex-col justify-between"
     >
-      {/* Video / Thumbnail Viewport with Lazy Video Preload */}
+      {/* Video / Thumbnail Viewport: Only attach video when user actively hovers */}
       <div className="relative aspect-video w-full overflow-hidden bg-black">
-        {project.video_url ? (
+        {isHovered && project.video_url ? (
           <video
             ref={videoRef}
             src={project.video_url}
             poster={displayImage || undefined}
+            autoPlay
             muted
             loop
             playsInline
-            preload="none"
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
-              isHovered ? "opacity-100" : "opacity-85"
-            }`}
+            className="w-full h-full object-cover transition-transform duration-500 scale-105 opacity-100"
           />
         ) : displayImage ? (
           /* eslint-disable-next-line @next/next/no-img-element */

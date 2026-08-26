@@ -348,6 +348,198 @@ USING (
 );
 
 -- ==============================================================================
+-- 10. ATOMIC PROJECT CREATION & UPDATE PROCEDURE (TRANSACTIONAL RPC)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.save_project_atomic(
+    p_project_id UUID,
+    p_title TEXT,
+    p_slug TEXT,
+    p_short_description TEXT,
+    p_overview TEXT,
+    p_category_id UUID,
+    p_video_url TEXT,
+    p_video_storage_path TEXT,
+    p_thumbnail_url TEXT,
+    p_thumbnail_storage_path TEXT,
+    p_duration TEXT,
+    p_editing_style TEXT,
+    p_challenge TEXT,
+    p_result_summary TEXT,
+    p_status TEXT,
+    p_featured BOOLEAN,
+    p_sort_order INTEGER,
+    p_services JSONB,
+    p_deliverables JSONB,
+    p_approach JSONB
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_project_id UUID;
+    v_result JSONB;
+    v_item JSONB;
+    v_idx INTEGER;
+BEGIN
+    -- Authorization check
+    IF NOT public.is_admin() THEN
+        RAISE EXCEPTION 'Unauthorized: Only administrators can save projects';
+    END IF;
+
+    -- Upsert Project Header
+    IF p_project_id IS NOT NULL THEN
+        -- Check existing slug uniqueness
+        IF EXISTS (
+            SELECT 1 FROM public.portfolio_projects
+            WHERE slug = p_slug AND id != p_project_id
+        ) THEN
+            RAISE EXCEPTION 'Slug "%" is already in use by another project.', p_slug;
+        END IF;
+
+        UPDATE public.portfolio_projects
+        SET
+            title = p_title,
+            slug = p_slug,
+            short_description = p_short_description,
+            overview = p_overview,
+            category_id = p_category_id,
+            video_url = p_video_url,
+            video_storage_path = p_video_storage_path,
+            thumbnail_url = p_thumbnail_url,
+            thumbnail_storage_path = p_thumbnail_storage_path,
+            duration = p_duration,
+            editing_style = p_editing_style,
+            challenge = p_challenge,
+            result_summary = p_result_summary,
+            status = p_status,
+            featured = p_featured,
+            sort_order = p_sort_order,
+            updated_at = now(),
+            published_at = CASE
+                WHEN p_status = 'published' AND published_at IS NULL THEN now()
+                WHEN p_status = 'draft' THEN published_at
+                ELSE published_at
+            END
+        WHERE id = p_project_id
+        RETURNING id INTO v_project_id;
+
+        IF v_project_id IS NULL THEN
+            RAISE EXCEPTION 'Project not found with id %', p_project_id;
+        END IF;
+
+        -- Clean up existing child relations atomically
+        DELETE FROM public.project_services WHERE project_id = v_project_id;
+        DELETE FROM public.project_deliverables WHERE project_id = v_project_id;
+        DELETE FROM public.project_approach WHERE project_id = v_project_id;
+    ELSE
+        -- Insert new project
+        IF EXISTS (
+            SELECT 1 FROM public.portfolio_projects
+            WHERE slug = p_slug
+        ) THEN
+            RAISE EXCEPTION 'Slug "%" is already in use.', p_slug;
+        END IF;
+
+        INSERT INTO public.portfolio_projects (
+            title,
+            slug,
+            short_description,
+            overview,
+            category_id,
+            video_url,
+            video_storage_path,
+            thumbnail_url,
+            thumbnail_storage_path,
+            duration,
+            editing_style,
+            challenge,
+            result_summary,
+            status,
+            featured,
+            sort_order,
+            published_at
+        ) VALUES (
+            p_title,
+            p_slug,
+            p_short_description,
+            p_overview,
+            p_category_id,
+            p_video_url,
+            p_video_storage_path,
+            p_thumbnail_url,
+            p_thumbnail_storage_path,
+            p_duration,
+            p_editing_style,
+            p_challenge,
+            p_result_summary,
+            p_status,
+            p_featured,
+            p_sort_order,
+            CASE WHEN p_status = 'published' THEN now() ELSE NULL END
+        )
+        RETURNING id INTO v_project_id;
+    END IF;
+
+    -- Insert Services
+    IF p_services IS NOT NULL AND jsonb_array_length(p_services) > 0 THEN
+        v_idx := 0;
+        FOR v_item IN SELECT * FROM jsonb_array_elements(p_services)
+        LOOP
+            IF length(trim(v_item#>>'{}')) > 0 THEN
+                INSERT INTO public.project_services (project_id, name, sort_order)
+                VALUES (v_project_id, trim(v_item#>>'{}'), v_idx);
+                v_idx := v_idx + 1;
+            END IF;
+        END LOOP;
+    END IF;
+
+    -- Insert Deliverables
+    IF p_deliverables IS NOT NULL AND jsonb_array_length(p_deliverables) > 0 THEN
+        v_idx := 0;
+        FOR v_item IN SELECT * FROM jsonb_array_elements(p_deliverables)
+        LOOP
+            IF length(trim(v_item#>>'{}')) > 0 THEN
+                INSERT INTO public.project_deliverables (project_id, item, sort_order)
+                VALUES (v_project_id, trim(v_item#>>'{}'), v_idx);
+                v_idx := v_idx + 1;
+            END IF;
+        END LOOP;
+    END IF;
+
+    -- Insert Approach
+    IF p_approach IS NOT NULL AND (
+        p_approach->>'pacing_and_structure' IS NOT NULL OR
+        p_approach->>'b_roll_and_visuals' IS NOT NULL OR
+        p_approach->>'sound_and_color' IS NOT NULL OR
+        p_approach->>'retention_tactics' IS NOT NULL
+    ) THEN
+        INSERT INTO public.project_approach (
+            project_id,
+            pacing_and_structure,
+            b_roll_and_visuals,
+            sound_and_color,
+            retention_tactics
+        ) VALUES (
+            v_project_id,
+            NULLIF(p_approach->>'pacing_and_structure', ''),
+            NULLIF(p_approach->>'b_roll_and_visuals', ''),
+            NULLIF(p_approach->>'sound_and_color', ''),
+            NULLIF(p_approach->>'retention_tactics', '')
+        );
+    END IF;
+
+    SELECT jsonb_build_object(
+        'id', v_project_id,
+        'slug', p_slug,
+        'status', p_status
+    ) INTO v_result;
+
+    RETURN v_result;
+END;
+$$;
+
+-- ==============================================================================
 -- INITIAL DEFAULT CATEGORIES (Seeds)
 -- ==============================================================================
 INSERT INTO public.portfolio_categories (name, slug, description, sort_order)
