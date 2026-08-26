@@ -1,69 +1,49 @@
-import Image from "next/image";
+import React from "react";
+import { Metadata } from "next";
+import Hero from "@/components/Hero";
+import TrustBar from "@/components/TrustBar";
+import ShowreelSection from "@/components/ShowreelSection";
+import FeaturedWorkPreview from "@/components/FeaturedWorkPreview";
+import ServicesPreview from "@/components/ServicesPreview";
+import AboutPreview from "@/components/AboutPreview";
+import UpworkSuccess from "@/components/UpworkSuccess";
+import FinalCta from "@/components/FinalCta";
+import { profileData } from "@/data/profile";
+
+export const metadata: Metadata = {
+  title: `${profileData.fullName} | Professional Video Editor`,
+  description: profileData.heroSubheadline,
+  alternates: {
+    canonical: "https://muhammaddaniyal.com",
+  },
+};
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="relative overflow-x-hidden">
+      {/* 01 — Hero Introduction */}
+      <Hero />
+
+      {/* 02 — Verified Credibility Bar */}
+      <TrustBar />
+
+      {/* 03 — Featured Showreel */}
+      <ShowreelSection />
+
+      {/* 04 — Featured Selected Work Preview (3 projects with CTA to /work) */}
+      <FeaturedWorkPreview />
+
+      {/* 05 — Services Preview (3 packages with CTA to /services) */}
+      <ServicesPreview />
+
+      {/* 06 — About & Process Preview (with CTAs to /about and /process) */}
+      <AboutPreview />
+
+      {/* 07 — Verified Upwork Track Record */}
+      <UpworkSuccess />
+
+      {/* 08 — High-Impact Final CTA */}
+      <FinalCta />
+    </main>
   );
 }
