@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { softwareStack } from "@/data/skills";
 import { Cpu } from "lucide-react";

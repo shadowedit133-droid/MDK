@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { processSteps } from "@/data/process";
 import { CheckCircle2, GitBranch, ArrowRight } from "lucide-react";

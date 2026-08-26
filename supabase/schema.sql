@@ -79,6 +79,8 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_projects_status ON public.portfolio_pro
 CREATE INDEX IF NOT EXISTS idx_portfolio_projects_featured ON public.portfolio_projects(featured, status, sort_order);
 CREATE INDEX IF NOT EXISTS idx_portfolio_projects_slug ON public.portfolio_projects(slug);
 CREATE INDEX IF NOT EXISTS idx_portfolio_projects_category ON public.portfolio_projects(category_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_projects_created_at ON public.portfolio_projects(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_portfolio_projects_status_created ON public.portfolio_projects(status, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_project_services_project_id ON public.project_services(project_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_project_deliverables_project_id ON public.project_deliverables(project_id, sort_order);

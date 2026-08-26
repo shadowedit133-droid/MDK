@@ -2,13 +2,13 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
-import { FullProjectWithRelations } from "@/lib/db/types";
+import { ProjectCardItem } from "@/lib/db/types";
 import { Film, Play, ArrowRight, Clock } from "lucide-react";
 
 export default function FeaturedCard({
   project,
 }: {
-  project: FullProjectWithRelations;
+  project: ProjectCardItem;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -47,7 +47,7 @@ export default function FeaturedCard({
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="none"
             className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
               isHovered ? "opacity-100" : "opacity-85"
             }`}
@@ -57,6 +57,8 @@ export default function FeaturedCard({
           <img
             src={displayImage}
             alt={project.title}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
@@ -103,29 +105,9 @@ export default function FeaturedCard({
           )}
         </div>
 
-        <div>
-          {project.services && project.services.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {project.services.slice(0, 2).map((srv) => (
-                <span
-                  key={srv.id}
-                  className="px-2 py-0.5 rounded-md bg-zinc-900 border border-white/5 text-[10px] font-mono text-zinc-300"
-                >
-                  {srv.name}
-                </span>
-              ))}
-              {project.services.length > 2 && (
-                <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-white/5 text-[10px] font-mono text-zinc-400">
-                  +{project.services.length - 2} more
-                </span>
-              )}
-            </div>
-          )}
-
-          <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-bold text-zinc-400 group-hover:text-lime-400 transition-colors min-h-[32px]">
-            <span>Read Case Study</span>
-            <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-          </div>
+        <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-bold text-zinc-400 group-hover:text-lime-400 transition-colors min-h-[32px]">
+          <span>View Case Study</span>
+          <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
     </Link>

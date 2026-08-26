@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { whyWorkWithMeData } from "@/data/whyWorkWithMe";
 import { Compass, Zap, Eye, LayoutGrid, ShieldCheck, RefreshCw, Sparkles } from "lucide-react";

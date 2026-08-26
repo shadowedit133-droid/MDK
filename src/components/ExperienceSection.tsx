@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { experienceData } from "@/data/experience";
 import { History } from "lucide-react";

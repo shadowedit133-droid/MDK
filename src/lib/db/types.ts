@@ -61,11 +61,41 @@ export interface DbProjectApproach {
   updated_at: string;
 }
 
+export interface ProjectCardItem {
+  id: string;
+  title: string;
+  slug: string;
+  short_description: string | null;
+  category_id: string | null;
+  video_url: string | null;
+  thumbnail_url: string | null;
+  duration: string | null;
+  editing_style: string | null;
+  status: ProjectStatus;
+  featured: boolean;
+  sort_order: number;
+  created_at: string;
+  published_at: string | null;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+}
+
 export interface FullProjectWithRelations extends DbProject {
   category?: DbCategory | null;
   services: DbProjectService[];
   deliverables: DbProjectDeliverable[];
   approach: DbProjectApproach | null;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface ProjectFormData {

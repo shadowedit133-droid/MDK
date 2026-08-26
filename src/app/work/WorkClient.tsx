@@ -2,20 +2,24 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
-import { FullProjectWithRelations, DbCategory } from "@/lib/db/types";
+import { ProjectCardItem, DbCategory } from "@/lib/db/types";
 import { profileData } from "@/data/profile";
-import { Film, Play, ArrowUpRight, Clock, Sparkles } from "lucide-react";
+import { Film, Play, ArrowUpRight, Clock, Sparkles, ChevronDown } from "lucide-react";
 
 interface WorkClientProps {
-  initialProjects: FullProjectWithRelations[];
+  initialProjects: ProjectCardItem[];
   categories: DbCategory[];
 }
+
+const INITIAL_VISIBLE_COUNT = 12;
+const LOAD_MORE_STEP = 12;
 
 export default function WorkClient({
   initialProjects,
   categories,
 }: WorkClientProps) {
   const [activeCategorySlug, setActiveCategorySlug] = useState<string>("all");
+  const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
 
   const filteredProjects =
     activeCategorySlug === "all"
@@ -24,6 +28,18 @@ export default function WorkClient({
           (p) => p.category && p.category.slug === activeCategorySlug
         );
 
+  const displayedProjects = filteredProjects.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredProjects.length;
+
+  const handleCategoryChange = (slug: string) => {
+    setActiveCategorySlug(slug);
+    setVisibleCount(INITIAL_VISIBLE_COUNT);
+  };
+
+  const handleLoadMore = () => {
+    setVisibleCount((prev) => prev + LOAD_MORE_STEP);
+  };
+
   return (
     <div>
       {/* Category Filter Tabs with Horizontal Touch Scrolling */}
@@ -31,7 +47,7 @@ export default function WorkClient({
         <div className="relative mb-10 sm:mb-14">
           <div className="flex items-center gap-2 overflow-x-auto pb-3 pt-1 scrollbar-none no-scrollbar flex-nowrap -mx-4 px-4 sm:mx-0 sm:px-0">
             <button
-              onClick={() => setActiveCategorySlug("all")}
+              onClick={() => handleCategoryChange("all")}
               className={`px-4 py-2.5 rounded-full text-xs font-mono font-medium whitespace-nowrap transition-all duration-200 cursor-pointer min-h-[42px] flex items-center shrink-0 ${
                 activeCategorySlug === "all"
                   ? "bg-lime-400 text-zinc-950 font-bold shadow-lg shadow-lime-400/20"
@@ -50,7 +66,7 @@ export default function WorkClient({
               return (
                 <button
                   key={category.id}
-                  onClick={() => setActiveCategorySlug(category.slug)}
+                  onClick={() => handleCategoryChange(category.slug)}
                   className={`px-4 py-2.5 rounded-full text-xs font-mono font-medium whitespace-nowrap transition-all duration-200 cursor-pointer min-h-[42px] flex items-center shrink-0 ${
                     isActive
                       ? "bg-lime-400 text-zinc-950 font-bold shadow-lg shadow-lime-400/20"
@@ -69,11 +85,28 @@ export default function WorkClient({
       )}
 
       {/* Projects Grid: 1 col on mobile, 2 on tablet, 3 on desktop */}
-      {filteredProjects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          {filteredProjects.map((project) => (
-            <WorkProjectCard key={project.id} project={project} />
-          ))}
+      {displayedProjects.length > 0 ? (
+        <div className="space-y-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            {displayedProjects.map((project) => (
+              <WorkProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+
+          {/* Scalable Load More Trigger */}
+          {hasMore && (
+            <div className="flex flex-col items-center justify-center pt-4 sm:pt-6">
+              <button
+                onClick={handleLoadMore}
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-white/10 hover:border-lime-400/40 text-white hover:text-lime-300 text-xs font-mono font-bold transition-all shadow-lg hover:shadow-lime-400/10 cursor-pointer"
+              >
+                <span>
+                  Load More Projects ({filteredProjects.length - visibleCount} remaining)
+                </span>
+                <ChevronDown className="w-4 h-4 text-lime-400" />
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="p-12 sm:p-20 rounded-3xl bg-[#0e0e14] border border-white/[0.08] text-center space-y-4 shadow-xl">
@@ -130,7 +163,7 @@ export default function WorkClient({
   );
 }
 
-function WorkProjectCard({ project }: { project: FullProjectWithRelations }) {
+function WorkProjectCard({ project }: { project: ProjectCardItem }) {
   const [isHovered, setIsHovered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -159,7 +192,7 @@ function WorkProjectCard({ project }: { project: FullProjectWithRelations }) {
       onMouseLeave={handleMouseLeave}
       className="group relative rounded-2xl sm:rounded-3xl overflow-hidden bg-[#0e0e14] border border-white/[0.08] hover:border-lime-400/40 transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.8)] flex flex-col justify-between"
     >
-      {/* Video / Thumbnail Viewport */}
+      {/* Video / Thumbnail Viewport with Lazy Video Preload */}
       <div className="relative aspect-video w-full overflow-hidden bg-black">
         {project.video_url ? (
           <video
@@ -169,7 +202,7 @@ function WorkProjectCard({ project }: { project: FullProjectWithRelations }) {
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="none"
             className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
               isHovered ? "opacity-100" : "opacity-85"
             }`}
@@ -179,6 +212,8 @@ function WorkProjectCard({ project }: { project: FullProjectWithRelations }) {
           <img
             src={displayImage}
             alt={project.title}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
@@ -231,29 +266,9 @@ function WorkProjectCard({ project }: { project: FullProjectWithRelations }) {
           )}
         </div>
 
-        <div>
-          {project.services && project.services.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {project.services.slice(0, 2).map((srv) => (
-                <span
-                  key={srv.id}
-                  className="px-2 py-0.5 rounded-md bg-zinc-900 border border-white/5 text-[10px] font-mono text-zinc-300"
-                >
-                  {srv.name}
-                </span>
-              ))}
-              {project.services.length > 2 && (
-                <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-white/5 text-[10px] font-mono text-zinc-400">
-                  +{project.services.length - 2} more
-                </span>
-              )}
-            </div>
-          )}
-
-          <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-bold text-zinc-400 group-hover:text-lime-400 transition-colors min-h-[32px]">
-            <span>View Full Case Study</span>
-            <ArrowUpRight className="w-4 h-4 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-          </div>
+        <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-bold text-zinc-400 group-hover:text-lime-400 transition-colors min-h-[32px]">
+          <span>View Full Case Study</span>
+          <ArrowUpRight className="w-4 h-4 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
         </div>
       </div>
     </Link>

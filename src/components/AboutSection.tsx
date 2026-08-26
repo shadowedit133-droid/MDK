@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { profileData } from "@/data/profile";
 import { User, CheckCircle2, ArrowUpRight } from "lucide-react";
